@@ -7,7 +7,8 @@ import youtokentome as yttm
 
 
 class TrainTestSplit():
-    def __init__(self, inp_path, out_path, train_path, test_path, test_size=0.1, bpe_path=''):
+    def __init__(self, inp_path, out_path, train_path, test_path,
+                 test_size=0.1, bpe_path='', bpe=False):
         df = pd.read_csv(inp_path)
         df['msg_parsed'] = df.msg.apply(self._preproc)
         df['msg_splitted_len'] = df.msg.apply(lambda x: len(self._preproc(x).split()))
@@ -15,7 +16,7 @@ class TrainTestSplit():
         with open(out_path, 'w') as out:
             for msg in df.msg_parsed.values:
                 out.write(msg+'\n')
-        if len(bpe_path) > 0:
+        if bpe:
             yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
         X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size)
         with open(train_path, 'w') as inp:

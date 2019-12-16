@@ -4,7 +4,7 @@ import random
 import os
 
 import torch
-
+from optim import RAdam
 from itertools import chain
 import torch.optim as optim
 import warnings
@@ -181,9 +181,11 @@ elif args.arch == 'stacked':
 else:
     raise TypeError
 if args.optimizer.lower() == 'adam':
-    optimizer = optim.Adam(transformer_model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
 elif args.optimizer.lower() == 'sgd':
-    optimizer = optim.SGD(transformer_model.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+elif args.optimizer.lower() == 'radam':
+    optimizer = RAdam(model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
 else:
     raise TypeError
 iterator = BucketIterator(batch_size=args.batch, sorting_keys=[("source", "num_tokens")])
@@ -198,6 +200,8 @@ if use_cuda:
     torch.cuda.manual_seed_all(args.manualSeed)
     cuda_device = 0
     model.model = model.cuda(cuda_device)
+else:
+    cuda_device = -1
 
 trainer = Trainer(model=model,
                   optimizer=optimizer,
@@ -206,6 +210,7 @@ trainer = Trainer(model=model,
                   validation_dataset=test_dataset,
                   patience=4,
                   num_epochs=args.epochs,
+                  cuda_device=cuda_device,
                   #learning_rate_scheduler=scheduler,
                   serialization_dir=args.serialization_path)
 

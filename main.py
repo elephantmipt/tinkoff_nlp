@@ -4,28 +4,22 @@ import random
 import os
 
 import torch
-import torch.nn as nn
+
 from itertools import chain
 import torch.optim as optim
 import warnings
 from typing import Dict, Iterable, Union, Optional
 from allennlp.data.tokenizers import WordTokenizer, Token
 import youtokentome as yttm
+from allennlp.training.learning_rate_schedulers.learning_rate_scheduler import _PyTorchLearningRateSchedulerWrapper
 
-import numpy as np
-import re
-
-from tqdm import tqdm
 
 from allennlp.data import Instance
-from allennlp.data.fields import TextField, SequenceLabelField
-from allennlp.data.dataset_readers import DatasetReader
-
-from allennlp.data import Instance
-from allennlp.data.fields import TextField, SequenceLabelField
+from allennlp.data.fields import TextField
 from language_model import LanguageModel
+
 from allennlp.data.tokenizers.tokenizer import Tokenizer
-from allennlp.data.dataset_readers import DatasetReader, SimpleLanguageModelingDatasetReader
+from allennlp.data.dataset_readers import DatasetReader
 from allennlp.common.file_utils import cached_path
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
@@ -33,10 +27,13 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
 from allennlp.modules.token_embedders import Embedding
 from allennlp.modules.seq2seq_encoders import PytorchSeq2SeqWrapper, MultiHeadSelfAttention
+from allennlp.modules.seq2seq_encoders.stacked_self_attention import StackedSelfAttentionEncoder
 
 from allennlp.data.iterators import BucketIterator
 from allennlp.training.trainer import Trainer
 from preprocessing import TrainTestSplit
+
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 warnings.filterwarnings("ignore")
@@ -45,15 +42,15 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description='Language model argument parser')
 
-parser.add_argument('--epochs', default=300, type=int, metavar='N',
+parser.add_argument('--epochs', default=50, type=int, metavar='N',
                     help='number of total epochs to run')
 
-parser.add_argument('--batch', default=32, type=int, metavar='N',
+parser.add_argument('--batch', default=8, type=int, metavar='N',
                     help='train batchsize')
 
 parser.add_argument('--optimizer', default='adam', type=str, choices=['adam' 'sgd'])
 
-parser.add_argument('--arch', default='mhsa', type=str, choices=['mhsa' 'lstm'])
+parser.add_argument('--arch', default='stacked', type=str, choices=['mhsa' 'lstm', 'stacked'])
 
 parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
                     metavar='LR', help='initial learning rate')
@@ -89,7 +86,6 @@ parser.add_argument('--gpu-id', default='0', type=str,
 
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
-
 
 
 PATH = args.dataset_path
@@ -147,14 +143,14 @@ class LanguageModelingBpeReader(DatasetReader):
                 if instance.fields['source'].sequence_length() <= self._max_sequence_length:
                     yield instance
 
-reader = LanguageModelingBpeReader(bpe=args.bpe, bpe_model_path=PATH+'bpe.model')
+reader = LanguageModelingBpeReader(tokenizer=WordTokenizer(), bpe=args.bpe, bpe_model_path=PATH+'bpe.model')
 
 train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
 
 
-EMBEDDING_DIM = 32
-HIDDEN_DIM = 32
+EMBEDDING_DIM = 64
+HIDDEN_DIM = 64
 
 vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
 
@@ -170,12 +166,21 @@ lstm_model = LanguageModel(contextualizer=lstm, text_field_embedder=word_embeddi
 
 transformer = MultiHeadSelfAttention(attention_dim=16, input_dim=EMBEDDING_DIM, num_heads=8,
                                      values_dim=16, attention_dropout_prob=args.drop)
+
 transformer_model = LanguageModel(contextualizer=transformer, text_field_embedder=word_embeddings, vocab=vocab)
 
+stacked_transformer = StackedSelfAttentionEncoder(input_dim=EMBEDDING_DIM, hidden_dim=HIDDEN_DIM, num_layers=2,
+                                                  projection_dim=64, feedforward_hidden_dim=32, num_attention_heads=4)
+
+stacked_transformer_model = LanguageModel(contextualizer=stacked_transformer,
+                                                      text_field_embedder=word_embeddings,
+                                                      vocab=vocab)
 if args.arch == 'mhsa':
     model = transformer_model
 elif args.arch == 'lstm':
     model = lstm_model
+elif args.arch == 'stacked':
+    model = stacked_transformer_model
 else:
     raise TypeError
 if args.optimizer.lower() == 'adam':
@@ -184,16 +189,19 @@ elif args.optimizer.lower() == 'sgd':
     optimizer = optim.SGD(transformer_model.parameters(), lr=args.lr, momentum=args.momentum)
 else:
     raise TypeError
-iterator = BucketIterator(batch_size=16, sorting_keys=[("source", "num_tokens")])
+iterator = BucketIterator(batch_size=args.batch, sorting_keys=[("source", "num_tokens")])
 iterator.index_with(vocab)
+
+#scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=2))
 
 trainer = Trainer(model=transformer_model,
                   optimizer=optimizer,
                   iterator=iterator,
                   train_dataset=train_dataset,
                   validation_dataset=test_dataset,
-                  patience=3,
+                  patience=4,
                   num_epochs=args.epochs,
+                  #learning_rate_scheduler=scheduler,
                   serialization_dir=args.serialization_path)
 
 trainer.train()

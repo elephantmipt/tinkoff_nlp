@@ -11,7 +11,7 @@ from sampled_softmax_loss import SampledSoftmaxLoss
 from allennlp.modules.seq2seq_encoders import Seq2SeqEncoder
 from allennlp.nn.util import get_text_field_mask
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
-from metrics import Perplexity
+from allennlp.training.metrics import Perplexity
 
 
 class _SoftmaxLoss(torch.nn.Module):
@@ -44,7 +44,7 @@ class _SoftmaxLoss(torch.nn.Module):
         return torch.nn.functional.nll_loss(probs, targets.long(), reduction="sum")
 
 
-@Model.register("language_model")
+
 class LanguageModel(Model):
     """
     The ``LanguageModel`` applies a "contextualizing"

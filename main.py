@@ -150,8 +150,8 @@ train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
 
 
-EMBEDDING_DIM = 128
-HIDDEN_DIM = 128
+EMBEDDING_DIM = 32
+HIDDEN_DIM = 32
 
 vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
 
@@ -165,13 +165,14 @@ lstm = PytorchSeq2SeqWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_firs
 lstm_model = LanguageModel(contextualizer=lstm, text_field_embedder=word_embeddings,
                            vocab=vocab)
 
-transformer = MultiHeadSelfAttention(attention_dim=32, input_dim=EMBEDDING_DIM, num_heads=8,
-                                     values_dim=32, attention_dropout_prob=args.drop)
+transformer = MultiHeadSelfAttention(attention_dim=16, input_dim=EMBEDDING_DIM, num_heads=2,
+                                     values_dim=16, attention_dropout_prob=args.drop)
 
 transformer_model = LanguageModel(contextualizer=transformer, text_field_embedder=word_embeddings, vocab=vocab)
 
 stacked_transformer = StackedSelfAttentionEncoder(input_dim=EMBEDDING_DIM, hidden_dim=HIDDEN_DIM, num_layers=2,
-                                                  projection_dim=32, feedforward_hidden_dim=32, num_attention_heads=4)
+                                                  projection_dim=16, feedforward_hidden_dim=16, num_attention_heads=2,
+                                                  attention_dropout_prob=args.drop)
 
 stacked_transformer_model = LanguageModel(contextualizer=stacked_transformer,
                                                       text_field_embedder=word_embeddings,
@@ -196,7 +197,7 @@ else:
 iterator = BucketIterator(batch_size=args.batch, sorting_keys=[("source", "num_tokens")])
 iterator.index_with(vocab)
 
-scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=4))
+#scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=4))
 
 
 if torch.cuda.is_available():
@@ -213,7 +214,7 @@ trainer = Trainer(model=model,
                   patience=10,
                   num_epochs=args.epochs,
                   serialization_dir=args.serialization_path,
-                  cuda_device=cuda_device,
-                  learning_rate_scheduler=scheduler)
+                  cuda_device=cuda_device)
+                  #learning_rate_scheduler=scheduler)
 
 trainer.train()

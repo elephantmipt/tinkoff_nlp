@@ -7,7 +7,7 @@ import youtokentome as yttm
 import random
 
 
-class TrainTestSplit():
+class TrainTestSplit:
     def __init__(self, inp_path, out_path, train_path, test_path,
                  test_size=0.1, bpe_path='', bpe=False, mistakes_rate=0):
         df = pd.read_csv(inp_path)
@@ -23,11 +23,9 @@ class TrainTestSplit():
 
                 out.write(msg+'\n')
         if bpe:
-            yttm.BPE.train(model=bpe_path, vocab_size=50000, data=out_path, coverage=0.999, n_threads=-1)
+            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
         # после обучения токенизатора делаем ошибки
-        if mistakes_rate > 0:
-            df['msg_parsed'] = df['msg_parsed'].apply(self.mistake)
-        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=1)
+        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=9)
         with open(train_path, 'w') as inp:
             for msg in X_train:
                 msg = str(msg.encode('utf-8'))
@@ -73,11 +71,12 @@ class TrainTestSplit():
         x = x.strip().lower()
         return x
 
-    def mistake(self, msg):
+
+    def mistake(msg, mistakes_rate):
         arr = [i/1000 for i in range(1000)]
         msg_ = msg
         for i in range(len(msg)):
             rv = random.randint(arr)
-            if rv <= self.mistakes_rate:
+            if rv <= mistakes_rate:
                 msg_[i] = random.randint('йцукенгшщзхъфывапролджэячсмитьбю')
         return msg_

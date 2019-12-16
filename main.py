@@ -197,7 +197,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     print('using cuda')
-    torch.cuda.manual_seed_all(args.manualSeed)
+
     cuda_device = 0
     model.model = model.cuda(cuda_device)
 else:

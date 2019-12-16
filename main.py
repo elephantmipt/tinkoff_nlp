@@ -180,6 +180,7 @@ elif args.arch == 'stacked':
     model = stacked_transformer_model
 else:
     raise TypeError
+
 if args.optimizer.lower() == 'adam':
     optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
 elif args.optimizer.lower() == 'sgd':
@@ -193,13 +194,10 @@ iterator.index_with(vocab)
 
 #scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=2))
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
-use_cuda = torch.cuda.is_available()
-if use_cuda:
-    print('using cuda')
 
+if torch.cuda.is_available():
     cuda_device = 0
-    model.model = model.cuda(cuda_device)
+    model = model.cuda(cuda_device)
 else:
     cuda_device = -1
 
@@ -210,8 +208,7 @@ trainer = Trainer(model=model,
                   validation_dataset=test_dataset,
                   patience=4,
                   num_epochs=args.epochs,
-                  cuda_device=cuda_device,
-                  #learning_rate_scheduler=scheduler,
-                  serialization_dir=args.serialization_path)
+                  serialization_dir=args.serialization_path,
+                  cuda_device=cuda_device)
 
 trainer.train()

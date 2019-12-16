@@ -93,10 +93,7 @@ if args.manualSeed is None:
     args.manualSeed = random.randint(1, 10000)
 torch.manual_seed(args.manualSeed)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
-use_cuda = torch.cuda.is_available()
-if use_cuda:
-    torch.cuda.manual_seed_all(args.manualSeed)
+
 
 
 train_test = TrainTestSplit(inp_path=PATH+'data.csv', out_path=PATH+'prep_data.csv',train_path=PATH+'train_data.csv',
@@ -170,7 +167,7 @@ transformer = MultiHeadSelfAttention(attention_dim=16, input_dim=EMBEDDING_DIM, 
 transformer_model = LanguageModel(contextualizer=transformer, text_field_embedder=word_embeddings, vocab=vocab)
 
 stacked_transformer = StackedSelfAttentionEncoder(input_dim=EMBEDDING_DIM, hidden_dim=HIDDEN_DIM, num_layers=2,
-                                                  projection_dim=64, feedforward_hidden_dim=32, num_attention_heads=4)
+                                                  projection_dim=64, feedforward_hidden_dim=64, num_attention_heads=4)
 
 stacked_transformer_model = LanguageModel(contextualizer=stacked_transformer,
                                                       text_field_embedder=word_embeddings,
@@ -194,7 +191,15 @@ iterator.index_with(vocab)
 
 #scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=2))
 
-trainer = Trainer(model=transformer_model,
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+use_cuda = torch.cuda.is_available()
+if use_cuda:
+    print('using cuda')
+    torch.cuda.manual_seed_all(args.manualSeed)
+    cuda_device = 0
+    model.model = model.cuda(cuda_device)
+
+trainer = Trainer(model=model,
                   optimizer=optimizer,
                   iterator=iterator,
                   train_dataset=train_dataset,

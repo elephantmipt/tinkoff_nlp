@@ -4,27 +4,38 @@ from typing import List
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import youtokentome as yttm
+import random
 
 
 class TrainTestSplit():
     def __init__(self, inp_path, out_path, train_path, test_path,
-                 test_size=0.1, bpe_path='', bpe=False):
+                 test_size=0.1, bpe_path='', bpe=False, mistakes_rate=0):
         df = pd.read_csv(inp_path)
+        self.mistakes_rate = mistakes_rate
+        df['msg'] = df['msg'].apply(lambda x: str(x.encode('utf-8')))
         df['msg_parsed'] = df.msg.apply(self._preproc)
         df['msg_splitted_len'] = df.msg.apply(lambda x: len(self._preproc(x).split()))
         df = df[df['msg_splitted_len'] > 1]
+
         with open(out_path, 'w') as out:
             for msg in df.msg_parsed.values:
-                out.write(str(msg.encode('utf-8'))+'\n')
+                msg = str(msg.encode('utf-8'))
+
+                out.write(msg+'\n')
         if bpe:
-            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
-        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size)
+            yttm.BPE.train(model=bpe_path, vocab_size=50000, data=out_path, coverage=0.999, n_threads=-1)
+        # после обучения токенизатора делаем ошибки
+        if mistakes_rate > 0:
+            df['msg_parsed'] = df['msg_parsed'].apply(self.mistake)
+        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=1)
         with open(train_path, 'w') as inp:
             for msg in X_train:
+                msg = str(msg.encode('utf-8'))
                 inp.write(str(msg.encode('utf-8'))+'\n')
         with open(test_path, 'w') as inp:
             for msg in X_test:
-                inp.write(str(msg.encode('utf-8'))+'\n')
+                msg = str(msg.encode('utf-8'))
+                inp.write(msg+'\n')
 
     def _preproc(self, msg: str) -> List[str]:
         x = msg
@@ -61,3 +72,12 @@ class TrainTestSplit():
         x = re.sub('[.?!,]', ' ', x)
         x = x.strip().lower()
         return x
+
+    def mistake(self, msg):
+        arr = [i/1000 for i in range(1000)]
+        msg_ = msg
+        for i in range(len(msg)):
+            rv = random.randint(arr)
+            if rv <= self.mistakes_rate:
+                msg_[i] = random.randint('йцукенгшщзхъфывапролджэячсмитьбю')
+        return msg_

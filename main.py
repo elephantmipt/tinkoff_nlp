@@ -84,6 +84,9 @@ parser.add_argument('--bpe', action='store_true')
 parser.add_argument('--gpu-id', default='0', type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 
+parser.add_argument('--mistakes-rate', default='0', type=float,
+                    help='probability of mistake made by user (after bpe train)')
+
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
 
@@ -97,7 +100,8 @@ torch.manual_seed(args.manualSeed)
 
 
 train_test = TrainTestSplit(inp_path=PATH+'data.csv', out_path=PATH+'prep_data.csv',train_path=PATH+'train_data.csv',
-                            test_path=PATH+'test_data.csv', bpe_path=PATH+'bpe.model', bpe=args.bpe)
+                            test_path=PATH+'test_data.csv', bpe_path=PATH+'bpe.model', bpe=args.bpe,
+                            mistakes_rate=args.mistakes_rate)
 
 
 class LanguageModelingBpeReader(DatasetReader):
@@ -146,8 +150,8 @@ train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
 
 
-EMBEDDING_DIM = 64
-HIDDEN_DIM = 64
+EMBEDDING_DIM = 128
+HIDDEN_DIM = 128
 
 vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
 
@@ -161,13 +165,13 @@ lstm = PytorchSeq2SeqWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_firs
 lstm_model = LanguageModel(contextualizer=lstm, text_field_embedder=word_embeddings,
                            vocab=vocab)
 
-transformer = MultiHeadSelfAttention(attention_dim=16, input_dim=EMBEDDING_DIM, num_heads=8,
-                                     values_dim=16, attention_dropout_prob=args.drop)
+transformer = MultiHeadSelfAttention(attention_dim=32, input_dim=EMBEDDING_DIM, num_heads=8,
+                                     values_dim=32, attention_dropout_prob=args.drop)
 
 transformer_model = LanguageModel(contextualizer=transformer, text_field_embedder=word_embeddings, vocab=vocab)
 
 stacked_transformer = StackedSelfAttentionEncoder(input_dim=EMBEDDING_DIM, hidden_dim=HIDDEN_DIM, num_layers=2,
-                                                  projection_dim=64, feedforward_hidden_dim=64, num_attention_heads=4)
+                                                  projection_dim=32, feedforward_hidden_dim=32, num_attention_heads=4)
 
 stacked_transformer_model = LanguageModel(contextualizer=stacked_transformer,
                                                       text_field_embedder=word_embeddings,
@@ -192,7 +196,7 @@ else:
 iterator = BucketIterator(batch_size=args.batch, sorting_keys=[("source", "num_tokens")])
 iterator.index_with(vocab)
 
-#scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=2))
+scheduler = _PyTorchLearningRateSchedulerWrapper(ReduceLROnPlateau(optimizer, patience=4))
 
 
 if torch.cuda.is_available():
@@ -206,9 +210,10 @@ trainer = Trainer(model=model,
                   iterator=iterator,
                   train_dataset=train_dataset,
                   validation_dataset=test_dataset,
-                  patience=4,
+                  patience=10,
                   num_epochs=args.epochs,
                   serialization_dir=args.serialization_path,
-                  cuda_device=cuda_device)
+                  cuda_device=cuda_device,
+                  learning_rate_scheduler=scheduler)
 
 trainer.train()

@@ -48,7 +48,7 @@ parser.add_argument('--epochs', default=50, type=int, metavar='N',
 parser.add_argument('--batch', default=8, type=int, metavar='N',
                     help='train batchsize')
 
-parser.add_argument('--optimizer', default='adam', type=str, choices=['adam' 'sgd'])
+parser.add_argument('--optimizer', default='adam', type=str, choices=['adam', 'sgd', 'radam'])
 
 parser.add_argument('--arch', default='stacked', type=str, choices=['mhsa' 'lstm', 'stacked'])
 

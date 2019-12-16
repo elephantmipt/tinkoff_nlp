@@ -15,16 +15,16 @@ class TrainTestSplit():
         df = df[df['msg_splitted_len'] > 1]
         with open(out_path, 'w') as out:
             for msg in df.msg_parsed.values:
-                out.write(msg+'\n')
+                out.write(str(msg.encode('utf-8'))+'\n')
         if bpe:
             yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
         X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size)
         with open(train_path, 'w') as inp:
             for msg in X_train:
-                inp.write(msg+'\n')
+                inp.write(str(msg.encode('utf-8'))+'\n')
         with open(test_path, 'w') as inp:
             for msg in X_test:
-                inp.write(msg+'\n')
+                inp.write(str(msg.encode('utf-8'))+'\n')
 
     def _preproc(self, msg: str) -> List[str]:
         x = msg

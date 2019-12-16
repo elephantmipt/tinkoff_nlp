@@ -12,7 +12,7 @@ class TrainTestSplit:
                  test_size=0.1, bpe_path='', bpe=False, mistakes_rate=0):
         df = pd.read_csv(inp_path)
         self.mistakes_rate = mistakes_rate
-        df['msg'] = df['msg'].apply(lambda x: str(x.encode('utf-8')))
+        #df['msg'] = df['msg'].apply(lambda x: str(x.encode('utf-8')))
         df['msg_parsed'] = df.msg.apply(self._preproc)
         df['msg_splitted_len'] = df.msg.apply(lambda x: len(self._preproc(x).split()))
         df = df[df['msg_splitted_len'] > 1]
@@ -23,7 +23,7 @@ class TrainTestSplit:
 
                 out.write(msg+'\n')
         if bpe:
-            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
+            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.99, n_threads=-1)
         # после обучения токенизатора делаем ошибки
         X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=9)
         with open(train_path, 'w') as inp:

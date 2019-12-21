@@ -31,13 +31,12 @@ from allennlp.modules.seq2seq_encoders.stacked_self_attention import StackedSelf
 
 from allennlp.data.iterators import BucketIterator
 from allennlp.training.trainer import Trainer
-from preprocessing import TrainTestSplit
+from preprocessing import TrainTestSplit, mistakes_maker
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 warnings.filterwarnings("ignore")
-
 
 
 parser = argparse.ArgumentParser(description='Language model argument parser')
@@ -101,7 +100,7 @@ torch.manual_seed(args.manualSeed)
 
 train_test = TrainTestSplit(inp_path=PATH+'data.csv', out_path=PATH+'prep_data.csv',train_path=PATH+'train_data.csv',
                             test_path=PATH+'test_data.csv', bpe_path=PATH+'bpe.model', bpe=args.bpe,
-                            mistakes_rate=args.mistakes_rate)
+                            voc_path=PATH+'all_voc.csv', ms_path=PATH+'ms_')
 
 
 class LanguageModelingBpeReader(DatasetReader):
@@ -148,12 +147,20 @@ reader = LanguageModelingBpeReader(tokenizer=WordTokenizer(), bpe=args.bpe, bpe_
 
 train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
+all_data = reader.read(PATH+'all_voc.csv')
 
 
 EMBEDDING_DIM = 32
 HIDDEN_DIM = 32
 
-vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
+with open(PATH + 'test_data.csv', 'r') as inp:
+    with open(PATH + 'test_data_m.csv', 'w') as  out:
+        for line in inp:
+            out.write(mistakes_maker(line, args.mistakes_rate) + '\n')
+
+vocab = Vocabulary.from_instances(all_data)
+
+vocab.save_to_files(PATH+"vocabulary")
 
 token_embedding = Embedding(num_embeddings=vocab.get_vocab_size('tokens'),
                             embedding_dim=EMBEDDING_DIM)

@@ -138,7 +138,7 @@ class LanguageModelingBpeReader(DatasetReader):
 
     def _read(self, file_path: str) -> Iterable[Instance]:
         # pylint: disable=arguments-differ
-        with open(file_path) as file:
+        with open(file_path, encoding='utf-8') as file:
             for sentence in file:
                 instance = self.text_to_instance(sentence)
                 if instance.fields['source'].sequence_length() <= self._max_sequence_length:

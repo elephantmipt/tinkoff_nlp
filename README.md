@@ -3,7 +3,13 @@
  
  Я обучил маленькую языковую модель из multi head self-attention (архитектуру можно выбрать).
  
+ Сразу результаты:
  
+ ![alt text](./img/results.png "results")
+ 
+ Только `bpe`:
+ 
+ ![alt text](./img/results_bpe.png "results bpe only")
  ## Инструкция
  
  Я сделал парсер аргументов для обучения модели нужно запускать файл `main.py`, для валидации `mistakes_validation.py`

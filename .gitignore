@@ -3,3 +3,6 @@
 /prep_data.csv
 /test_data.csv
 /train_data.csv
+/.ipynb_checkpoints/
+/analytics.ipynb
+/logs.txt

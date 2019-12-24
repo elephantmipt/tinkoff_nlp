@@ -12,7 +12,6 @@ from allennlp.data.tokenizers import WordTokenizer, Token
 import youtokentome as yttm
 from allennlp.training.learning_rate_schedulers.learning_rate_scheduler import _PyTorchLearningRateSchedulerWrapper
 
-
 from allennlp.data import Instance
 from allennlp.data.fields import TextField
 from language_model import LanguageModel

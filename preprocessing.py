@@ -1,13 +1,11 @@
 import re
-from tqdm import tqdm
 from typing import List
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import youtokentome as yttm
 import random
-from itertools import chain
 from tqdm import tqdm
-from allennlp.data.vocabulary import Vocabulary
+import numpy as np
 tqdm.pandas()
 
 
@@ -73,10 +71,12 @@ class TrainTestSplit:
         return x
 
 
-def mistakes_maker(msg, mistakes_rate):
+def mistakes_maker(msg, mistakes_rate, rand=0):
     msg_ = list(msg)
     for i in range(len(msg)):
-        rv = random.randrange(1, 1001)
-        if rv <= mistakes_rate:
-            msg_[i] = random.choice(list('йцукенгшщзхъфывапролджэячсмитьбю'))
+        np.random.seed(i+rand)
+        rv = np.random.randint(1, 1000)
+        if rv <= mistakes_rate*1000:
+            if msg[i] != ' ':
+                msg_[i] = random.choice(list('йцукенгшщзхъфывапролджэячсмитьбю'))
     return ''.join(msg_)

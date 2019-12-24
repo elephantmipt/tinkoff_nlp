@@ -1,7 +1,6 @@
 import argparse
 import math
 import random
-import os
 
 import torch
 from optim import RAdam
@@ -98,9 +97,12 @@ torch.manual_seed(args.manualSeed)
 
 
 
-train_test = TrainTestSplit(inp_path=PATH+'data.csv', out_path=PATH+'prep_data.csv',train_path=PATH+'train_data.csv',
-                            test_path=PATH+'test_data.csv', bpe_path=PATH+'bpe.model', bpe=args.bpe,
-                            voc_path=PATH+'all_voc.csv', ms_path=PATH+'ms_')
+train_test = TrainTestSplit(inp_path=PATH+'data.csv',
+                            out_path=PATH+'prep_data.csv',
+                            train_path=PATH+'train_data.csv',
+                            test_path=PATH+'test_data.csv',
+                            bpe_path=PATH+'bpe.model',
+                            bpe=args.bpe)
 
 
 class LanguageModelingBpeReader(DatasetReader):
@@ -125,7 +127,6 @@ class LanguageModelingBpeReader(DatasetReader):
     def text_to_instance(self,  # type: ignore
                          sentence: str) -> Instance:
         if self.bpe:
-
             tokenized = self.yttm.encode(sentence, output_type=yttm.OutputType.SUBWORD)
             tokenized = [Token(x) for x in tokenized]
         else:
@@ -147,8 +148,6 @@ reader = LanguageModelingBpeReader(tokenizer=WordTokenizer(), bpe=args.bpe, bpe_
 
 train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
-all_data = reader.read(PATH+'all_voc.csv')
-
 
 EMBEDDING_DIM = 32
 HIDDEN_DIM = 32
@@ -158,9 +157,9 @@ with open(PATH + 'test_data.csv', 'r') as inp:
         for line in inp:
             out.write(mistakes_maker(line, args.mistakes_rate) + '\n')
 
-vocab = Vocabulary.from_instances(all_data)
+vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
 
-vocab.save_to_files(PATH+"vocabulary")
+vocab.save_to_files(args.serialization_path+"/vocabulary")
 
 token_embedding = Embedding(num_embeddings=vocab.get_vocab_size('tokens'),
                             embedding_dim=EMBEDDING_DIM)
@@ -210,15 +209,17 @@ iterator.index_with(vocab)
 if torch.cuda.is_available():
     cuda_device = 0
     model = model.cuda(cuda_device)
+    print('using gpu')
 else:
     cuda_device = -1
+    print('using cpu')
 
 trainer = Trainer(model=model,
                   optimizer=optimizer,
                   iterator=iterator,
                   train_dataset=train_dataset,
                   validation_dataset=test_dataset,
-                  patience=10,
+                  patience=4,
                   num_epochs=args.epochs,
                   serialization_dir=args.serialization_path,
                   cuda_device=cuda_device)

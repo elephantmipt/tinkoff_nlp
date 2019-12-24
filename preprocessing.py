@@ -12,58 +12,28 @@ tqdm.pandas()
 
 
 class TrainTestSplit:
-    def __init__(self, inp_path, out_path, train_path, test_path, voc_path, ms_path,
-                 test_size=0.1, bpe_path='', bpe=False):
+    def __init__(self, inp_path, out_path, train_path, test_path,
+                 test_size=0.1, bpe_path='', bpe=False, random_state=9):
         df = pd.read_csv(inp_path)
 
-        #df['msg'] = df['msg'].apply(lambda x: x)
-
-        df['msg_parsed'] = df.msg.apply(self._preproc)
-        df['msg_splitted_len'] = df.msg.apply(lambda x: len(self._preproc(x).split()))
+        df['msg_parsed'] = df.msg.progress_apply(self._preproc)
+        df['msg_splitted_len'] = df.msg.progress_apply(lambda x: len(self._preproc(x).split()))
         df = df[df['msg_splitted_len'] > 1]
-        print('making mistakes...')
-        df['msg_0.01'] = df['msg_parsed'].progress_apply(lambda x : mistakes_maker(x, 0.01))
-        df['msg_0.02'] = df['msg_parsed'].progress_apply(lambda x: mistakes_maker(x, 0.02))
-        df['msg_0.03'] = df['msg_parsed'].progress_apply(lambda x: mistakes_maker(x, 0.03))
-        df['msg_0.05'] = df['msg_parsed'].progress_apply(lambda x: mistakes_maker(x, 0.05))
-        df['msg_0.1'] = df['msg_parsed'].progress_apply(lambda x: mistakes_maker(x, 0.1))
-        msg_all = list(chain(df['msg_0.01'].values, df['msg_0.02'].values,
-                  df['msg_0.03'].values, df['msg_0.05'].values,
-                  df['msg_0.1'].values))
         print('creating tmp files...')
-        with open(voc_path, 'w') as out:
-            for msg in tqdm(msg_all):
-                out.write(msg+'\n')
-        with open(ms_path+'0.01.csv', 'w') as out:
-            for msg in df['msg_0.01'].values:
-                out.write(msg+'\n')
-        with open(ms_path+'0.02.csv', 'w') as out:
-            for msg in df['msg_0.02'].values:
-                out.write(msg+'\n')
-        with open(ms_path+'0.03.csv', 'w') as out:
-            for msg in df['msg_0.03'].values:
-                out.write(msg+'\n')
-        with open(ms_path+'0.05.csv', 'w') as out:
-            for msg in df['msg_0.05'].values:
-                out.write(msg+'\n')
-        with open(ms_path+'0.1.csv', 'w') as out:
-            for msg in df['msg_0.1'].values:
-                out.write(msg+'\n')
 
-        with open(out_path, 'w') as out:
+        with open(out_path, 'w', encoding='utf-8') as out:
             for msg in df.msg_parsed.values:
                 out.write(msg+'\n')
         print('done')
         if bpe:
-            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=voc_path, coverage=0.999, n_threads=-1)
+            yttm.BPE.train(model=bpe_path, vocab_size=5000, data=out_path, coverage=0.999, n_threads=-1)
 
-        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=9)
-        with open(train_path, 'w') as inp:
+        X_train, X_test = train_test_split(df.msg_parsed.values, test_size=test_size, random_state=random_state)
+        with open(train_path, 'w', encoding='utf-8') as inp:
             for msg in X_train:
                 inp.write(msg+'\n')
-        with open(test_path, 'w') as inp:
+        with open(test_path, 'w', encoding='utf-8') as inp:
             for msg in X_test:
-                msg = str(msg.encode('utf-8'))
                 inp.write(msg+'\n')
 
     def _preproc(self, msg: str) -> List[str]:
@@ -109,4 +79,4 @@ def mistakes_maker(msg, mistakes_rate):
         rv = random.randrange(1, 1001)
         if rv <= mistakes_rate:
             msg_[i] = random.choice(list('йцукенгшщзхъфывапролджэячсмитьбю'))
-    return str(msg_)
+    return ''.join(msg_)

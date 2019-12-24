@@ -30,7 +30,7 @@ from allennlp.modules.seq2seq_encoders.stacked_self_attention import StackedSelf
 
 from allennlp.data.iterators import BucketIterator
 from allennlp.training.trainer import Trainer
-from preprocessing import TrainTestSplit, mistakes_maker
+from preprocessing import TrainTestSplit
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -149,13 +149,8 @@ reader = LanguageModelingBpeReader(tokenizer=WordTokenizer(), bpe=args.bpe, bpe_
 train_dataset = reader.read(cached_path(PATH + 'train_data.csv'))
 test_dataset = reader.read(cached_path(PATH + 'test_data.csv'))
 
-EMBEDDING_DIM = 32
-HIDDEN_DIM = 32
-
-with open(PATH + 'test_data.csv', 'r') as inp:
-    with open(PATH + 'test_data_m.csv', 'w') as  out:
-        for line in inp:
-            out.write(mistakes_maker(line, args.mistakes_rate) + '\n')
+EMBEDDING_DIM = 64
+HIDDEN_DIM = 64
 
 vocab = Vocabulary.from_instances(chain(train_dataset, test_dataset))
 
